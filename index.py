@@ -98,6 +98,7 @@ def get_property_details(csv_filename):
     
     # Add new columns
     df['Prix'] = None
+    df['Lieu'] = None
     df['Taille'] = None
     df['Taille_terrain'] = None
     df['Pieces'] = None
@@ -147,6 +148,12 @@ def get_property_details(csv_filename):
             if room_div:
                 rooms = room_div.get_text(strip=True).replace('pièces', '').replace('pièce', '').strip()
                 df.at[index, 'Pieces'] = rooms
+            
+            # Location
+            loc_div = soup.select_one('.ep-loc')
+            if loc_div:
+                loc = loc_div.get_text(strip=True).replace('—', '').strip()
+                df.at[index, 'Lieu'] = loc
             
         except requests.exceptions.RequestException as e:
             print(f"Error fetching {url}: {e}")
