@@ -1,6 +1,7 @@
 import folium
 import json
 import pandas as pd
+import os
 
 # Lire le CSV STEP03
 df = pd.read_csv("csv\STEP03_maisons_dept29.csv")
@@ -40,4 +41,5 @@ for gps in unique_gps:
 folium.LayerControl().add_to(m)
 
 # Sauvegarder la carte dans un fichier HTML
-m.save("map.html")
+os.makedirs("map", exist_ok=True)
+m.save("map/map.html")
