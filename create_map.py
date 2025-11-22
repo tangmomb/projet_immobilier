@@ -3,7 +3,7 @@ import json
 import pandas as pd
 
 # Lire le CSV STEP03
-df = pd.read_csv("csv/STEP03_appartements_paris.csv")
+df = pd.read_csv("csv\STEP03_maisons_dept29.csv")
 
 # Créer un dict GPS -> nom de commune
 commune_names = {}

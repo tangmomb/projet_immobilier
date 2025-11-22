@@ -177,29 +177,22 @@ if step not in ['1', '2']:
     print("Étape invalide. Arrêt du script.")
     sys.exit(1)
 
-# Ask user for city choice
-city = input("Ville et 50 km autour : Paris (p), Lyon (l), Marseille (m) ou Bordeaux (b) ? ").strip().lower()
-postal_codes = {'p': '75056', 'l': '69123', 'm': '13055', 'b': '33063'}
-city_names = {'p': 'paris', 'l': 'lyon', 'm': 'marseille', 'b': 'bordeaux'}
-if city in postal_codes:
-    city_name = city_names[city]
-    code = postal_codes[city]
-    base_houses = f"https://www.etreproprio.com/annonces/th.lc{code}-r50"
-    base_aparts = f"https://www.etreproprio.com/annonces/tf.lc{code}-r50"
-else:
-    print("Ville invalide. Arrêt du script.")
+# Ask user for department number
+dept = input("Numéro du département : ").strip()
+if not dept.isdigit() or len(dept) < 1 or len(dept) > 3:
+    print("Numéro de département invalide. Arrêt du script.")
     sys.exit(1)
 
 # Ask user for property type
 choice = input("Type : maisons (h) ou appartements (a) ? ").strip().lower()
 if choice == 'h':
-    base_url = base_houses
-    csv_filename = f'csv/STEP01_maisons_{city_name}.csv'
-    print(f"Scraping des maisons à {city_name}.")
+    base_url = f"https://www.etreproprio.com/annonces/th.ld{dept}"
+    csv_filename = f'csv/STEP01_maisons_dept{dept}.csv'
+    print(f"Scraping des maisons dans le département {dept}.")
 elif choice == 'a':
-    base_url = base_aparts
-    csv_filename = f'csv/STEP01_appartements_{city_name}.csv'
-    print(f"Scraping des appartements à {city_name}.")
+    base_url = f"https://www.etreproprio.com/annonces/tf.ld{dept}"
+    csv_filename = f'csv/STEP01_appartements_dept{dept}.csv'
+    print(f"Scraping des appartements dans le département {dept}.")
 else:
     print("Type invalide. Arrêt du script.")
     sys.exit(1)

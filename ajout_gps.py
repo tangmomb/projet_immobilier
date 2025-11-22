@@ -1,12 +1,26 @@
 import pandas as pd
+import os
 
 # Chemin du fichier de référence
 gps_path = r"csv\laposte-hexasmal.csv"
 
-# Demander le chemin du fichier CSV STEP02
-step02_path = input("Entrez le chemin du fichier CSV STEP02 : ").strip()
-if not step02_path:
-    print("Chemin invalide.")
+# Demander le type de bien
+choice = input("Type : maisons (h) ou appartements (a) ? ").strip().lower()
+if choice not in ['h', 'a']:
+    print("Type invalide.")
+    exit()
+
+# Demander le numéro du département
+dept = input("Numéro du département : ").strip()
+if not dept.isdigit():
+    print("Numéro invalide.")
+    exit()
+
+# Construire le chemin du fichier STEP02
+property_type = 'maisons' if choice == 'h' else 'appartements'
+step02_path = f"csv/STEP02_{property_type}_dept{dept}.csv"
+if not os.path.exists(step02_path):
+    print(f"Le fichier {step02_path} n'existe pas.")
     exit()
 
 # Lecture des CSVs
