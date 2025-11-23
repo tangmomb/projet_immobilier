@@ -27,7 +27,7 @@ def get_random_headers():
     }
 
 # Function to scrape properties
-async def scrape_properties(base_url, csv_filename):
+async def scrape_properties(base_url, csv_filename, lock):
     async with aiohttp.ClientSession() as session:
         total_properties = 0
         page = 1
@@ -54,15 +54,18 @@ async def scrape_properties(base_url, csv_filename):
                             title_div = card.select_one('.ep-title')
                             if title_div:
                                 name = title_div.get_text(strip=True)
+                                city_div = card.select_one('.ep-city')
+                                city = city_div.get_text(strip=True) if city_div else ''
                                 full_link = f"https://www.etreproprio.com{href}" if href.startswith('/') else href
-                                page_properties.append({'Nom': name, 'Lien': full_link})
+                                page_properties.append({'Ville': city, 'Nom': name, 'Lien': full_link})
                     
                     if not page_properties:
                         print(f"No more properties on page {page}. Stopping.")
                         break
                     
                     df = pd.DataFrame(page_properties)
-                    df.to_csv(csv_filename, mode='a', header=False, index=False)
+                    async with lock:
+                        df.to_csv(csv_filename, mode='a', header=False, index=False)
                     
                     total_properties += len(page_properties)
                     print(f"Found and saved {len(page_properties)} properties on page {page}.")
@@ -90,6 +93,9 @@ async def get_property_details(csv_filename):
     df['Taille'] = None
     df['Taille_terrain'] = None
     df['Pieces'] = None
+    
+    # Remove 'Ville' column as it duplicates with 'Lieu'
+    df = df.drop(columns=['Ville'])
     
     # Save to new CSV STEP02
     new_csv_filename = csv_filename.replace('STEP01', 'STEP02')
@@ -203,12 +209,27 @@ print(f"Trouvé {len(coms)} communes dans le département {dept}.")
 if step == '1':
     # Create CSV with headers if it doesn't exist
     if not os.path.exists(csv_filename):
-        pd.DataFrame(columns=['Nom', 'Lien']).to_csv(csv_filename, index=False)
+        pd.DataFrame(columns=['Ville', 'Nom', 'Lien']).to_csv(csv_filename, index=False)
     
-    for com in coms:
+    lock = asyncio.Lock()
+    
+    async def scrape_city(com):
         base_url = f"https://www.etreproprio.com/annonces/{prefix}.lc{com}-r0"
         print(f"Scraping pour la commune {com}...")
-        asyncio.run(scrape_properties(base_url, csv_filename))
+        await scrape_properties(base_url, csv_filename, lock)
+    
+    semaphore = asyncio.Semaphore(5)  # Limit concurrent cities to 5
+    
+    async def main():
+        tasks = []
+        for com in coms:
+            async def limited_scrape(com=com):
+                async with semaphore:
+                    await scrape_city(com)
+            tasks.append(limited_scrape())
+        await asyncio.gather(*tasks)
+    
+    asyncio.run(main())
 elif step == '2':
     if not os.path.exists(csv_filename):
         print(f"Le fichier {csv_filename} n'existe pas. Veuillez d'abord exécuter l'étape 1.")
