@@ -31,7 +31,6 @@ async def scrape_properties(base_url, csv_filename):
     async with aiohttp.ClientSession() as session:
         total_properties = 0
         page = 1
-        first_page = True
         while True:
             url = f"{base_url}.odd.g{page}#list"
             print(f"Scraping page {page}: {url}")
@@ -63,8 +62,7 @@ async def scrape_properties(base_url, csv_filename):
                         break
                     
                     df = pd.DataFrame(page_properties)
-                    df.to_csv(csv_filename, mode='a' if not first_page else 'w', header=first_page, index=False)
-                    first_page = False
+                    df.to_csv(csv_filename, mode='a', header=False, index=False)
                     
                     total_properties += len(page_properties)
                     print(f"Found and saved {len(page_properties)} properties on page {page}.")
@@ -181,20 +179,36 @@ if not dept.isdigit() or len(dept) < 1 or len(dept) > 3:
 # Ask user for property type
 choice = input("Type : maisons (h) ou appartements (a) ? ").strip().lower()
 if choice == 'h':
-    base_url = f"https://www.etreproprio.com/annonces/th.ld{dept}"
+    prefix = 'th'
     csv_filename = f'csv/STEP01_maisons_dept{dept}.csv'
     print(f"Scraping des maisons dans le département {dept}.")
 elif choice == 'a':
-    base_url = f"https://www.etreproprio.com/annonces/tf.ld{dept}"
+    prefix = 'tf'
     csv_filename = f'csv/STEP01_appartements_dept{dept}.csv'
     print(f"Scraping des appartements dans le département {dept}.")
 else:
     print("Type invalide. Arrêt du script.")
     sys.exit(1)
 
+# Load code_insee.csv and filter cities in the department
+df_insee = pd.read_csv('csv/code_insee.csv')
+coms = df_insee[df_insee['COM'].str.startswith(dept)]['COM'].tolist()
+if not coms:
+    print(f"Aucune commune trouvée pour le département {dept}.")
+    sys.exit(1)
+
+print(f"Trouvé {len(coms)} communes dans le département {dept}.")
+
 # Execute based on step
 if step == '1':
-    asyncio.run(scrape_properties(base_url, csv_filename))
+    # Create CSV with headers if it doesn't exist
+    if not os.path.exists(csv_filename):
+        pd.DataFrame(columns=['Nom', 'Lien']).to_csv(csv_filename, index=False)
+    
+    for com in coms:
+        base_url = f"https://www.etreproprio.com/annonces/{prefix}.lc{com}-r0"
+        print(f"Scraping pour la commune {com}...")
+        asyncio.run(scrape_properties(base_url, csv_filename))
 elif step == '2':
     if not os.path.exists(csv_filename):
         print(f"Le fichier {csv_filename} n'existe pas. Veuillez d'abord exécuter l'étape 1.")
