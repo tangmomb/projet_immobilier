@@ -4,3 +4,4 @@ Projet Python avancée web scraping.pdf
 csv/laposte-hexasmal.csv
 csv/code_insee.csv
 others/
+__pycache__/
