@@ -27,7 +27,7 @@ def get_random_headers():
     }
 
 # Function to scrape properties
-async def scrape_properties(base_url, csv_filename, lock):
+async def scrape_properties(base_url, csv_filename, lock_write, existing_links, lock_links):
     async with aiohttp.ClientSession() as session:
         total_properties = 0
         page = 1
@@ -57,14 +57,17 @@ async def scrape_properties(base_url, csv_filename, lock):
                                 city_div = card.select_one('.ep-city')
                                 city = city_div.get_text(strip=True) if city_div else ''
                                 full_link = f"https://www.etreproprio.com{href}" if href.startswith('/') else href
-                                page_properties.append({'Ville': city, 'Nom': name, 'Lien': full_link})
+                                async with lock_links:
+                                    if full_link not in existing_links:
+                                        existing_links.add(full_link)
+                                        page_properties.append({'Ville': city, 'Nom': name, 'Lien': full_link})
                     
                     if not page_properties:
                         print(f"No more properties on page {page}. Stopping.")
                         break
                     
                     df = pd.DataFrame(page_properties)
-                    async with lock:
+                    async with lock_write:
                         df.to_csv(csv_filename, mode='a', header=False, index=False)
                     
                     total_properties += len(page_properties)
@@ -211,12 +214,19 @@ if step == '1':
     if not os.path.exists(csv_filename):
         pd.DataFrame(columns=['Ville', 'Nom', 'Lien']).to_csv(csv_filename, index=False)
     
-    lock = asyncio.Lock()
+    # Load existing links to avoid duplicates
+    existing_links = set()
+    if os.path.exists(csv_filename):
+        df_existing = pd.read_csv(csv_filename)
+        existing_links = set(df_existing['Lien'].tolist())
+    
+    lock_write = asyncio.Lock()
+    lock_links = asyncio.Lock()
     
     async def scrape_city(com):
         base_url = f"https://www.etreproprio.com/annonces/{prefix}.lc{com}-r0"
         print(f"Scraping pour la commune {com}...")
-        await scrape_properties(base_url, csv_filename, lock)
+        await scrape_properties(base_url, csv_filename, lock_write, existing_links, lock_links)
     
     semaphore = asyncio.Semaphore(5)  # Limit concurrent cities to 5
     
@@ -230,6 +240,7 @@ if step == '1':
         await asyncio.gather(*tasks)
     
     asyncio.run(main())
+    
 elif step == '2':
     if not os.path.exists(csv_filename):
         print(f"Le fichier {csv_filename} n'existe pas. Veuillez d'abord exécuter l'étape 1.")
