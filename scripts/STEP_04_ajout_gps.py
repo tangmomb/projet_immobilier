@@ -4,27 +4,16 @@ import os
 # Chemin du fichier de référence
 gps_path = r"csv\laposte-hexasmal.csv"
 
-# Demander le type de bien
-choice = input("Type : maisons (h) ou appartements (a) ? ").strip().lower()
-if choice not in ['h', 'a']:
-    print("Type invalide.")
-    exit()
+# Chemin du fichier à traiter
+input_path = r"csv\all_bretagne.csv"
 
-# Demander le numéro du département
-dept = input("Numéro du département : ").strip()
-if not dept.isdigit():
-    print("Numéro invalide.")
-    exit()
-
-# Construire le chemin du fichier STEP02
-property_type = 'maisons' if choice == 'h' else 'appartements'
-step02_path = f"csv/STEP02_{property_type}_dept{dept}.csv"
-if not os.path.exists(step02_path):
-    print(f"Le fichier {step02_path} n'existe pas.")
+# Vérifier si le fichier existe
+if not os.path.exists(input_path):
+    print(f"Le fichier {input_path} n'existe pas.")
     exit()
 
 # Lecture des CSVs
-df_step02 = pd.read_csv(step02_path)
+df_input = pd.read_csv(input_path)
 df_gps = pd.read_csv(gps_path)
 
 # Créer un dict pour lookup rapide : (Nom_de_la_commune (majuscule), Code_postal) -> {'insee': ..., 'geometry': ...}
@@ -38,11 +27,11 @@ for _, row in df_gps.iterrows():
     gps_dict[key] = {'insee': insee, 'geometry': geometry}
 
 # Ajout des nouvelles colonnes
-df_step02['Code INSEE'] = ''
-df_step02['GPS'] = ''
+df_input['Code INSEE'] = ''
+df_input['GPS'] = ''
 
-# Pour chaque ligne dans STEP02
-for index, row in df_step02.iterrows():
+# Pour chaque ligne dans le fichier input
+for index, row in df_input.iterrows():
     lieu = row['Lieu']
     if pd.notna(lieu):
         # Extraire la ville et le code postal
@@ -53,10 +42,10 @@ for index, row in df_step02.iterrows():
             key = (ville, code_postal)
             if key in gps_dict:
                 data = gps_dict[key]
-                df_step02.at[index, 'Code INSEE'] = data['insee']
-                df_step02.at[index, 'GPS'] = data['geometry']
+                df_input.at[index, 'Code INSEE'] = data['insee']
+                df_input.at[index, 'GPS'] = data['geometry']
 
-# Écriture du nouveau CSV STEP03
-output_path = step02_path.replace('STEP02', 'STEP03')
-df_step02.to_csv(output_path, index=False)
-print(f"Fichier STEP03 créé : {output_path}")
+# Écriture du nouveau CSV
+output_path = input_path.replace('.csv', '_with_gps.csv')
+df_input.to_csv(output_path, index=False)
+print(f"Fichier avec GPS créé : {output_path}")

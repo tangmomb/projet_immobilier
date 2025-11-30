@@ -228,7 +228,7 @@ if step == '1':
         print(f"Scraping pour la commune {com}...")
         await scrape_properties(base_url, csv_filename, lock_write, existing_links, lock_links)
     
-    semaphore = asyncio.Semaphore(5)  # Limit concurrent cities to 5
+    semaphore = asyncio.Semaphore(3)  # Limit concurrent cities to 3
     
     async def main():
         tasks = []
