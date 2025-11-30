@@ -199,17 +199,18 @@ else:
     print("Type invalide. Arrêt du script.")
     sys.exit(1)
 
-# Load code_insee.csv and filter cities in the department
-df_insee = pd.read_csv('csv/code_insee.csv')
-coms = df_insee[df_insee['COM'].str.startswith(dept)]['COM'].tolist()
-if not coms:
-    print(f"Aucune commune trouvée pour le département {dept}.")
-    sys.exit(1)
-
-print(f"Trouvé {len(coms)} communes dans le département {dept}.")
-
 # Execute based on step
 if step == '1':
+    # Load communes from the department-specific CSV
+    communes_csv = f'csv/communes_dept{dept}.csv'
+    if os.path.exists(communes_csv):
+        df_communes = pd.read_csv(communes_csv)
+        coms = df_communes['COM'].tolist()
+        print(f"Chargé {len(coms)} communes depuis {communes_csv}.")
+    else:
+        print(f"Le fichier {communes_csv} n'existe pas. Veuillez le créer d'abord en utilisant le notebook explore_csv.ipynb.")
+        sys.exit(1)
+    
     # Create CSV with headers if it doesn't exist
     if not os.path.exists(csv_filename):
         pd.DataFrame(columns=['Ville', 'Nom', 'Lien']).to_csv(csv_filename, index=False)

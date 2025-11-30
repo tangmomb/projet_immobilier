@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
+import os
 
 st.set_page_config(layout="wide")
 
@@ -26,7 +27,7 @@ with col1:
         else:
             filtered_df = df_agg
         st.write("Lieu, Maisons en vente, Prix moyen au m2")
-        st.write(filtered_df.to_html(index=False, header=False), unsafe_allow_html=True)
+        st.write(f'<div style="height:400px; overflow-y:scroll;">{filtered_df.to_html(index=False, header=False)}</div>', unsafe_allow_html=True)
     except FileNotFoundError:
         st.error("Le fichier csv/all_bretagne.csv n'a pas été trouvé. Veuillez exécuter all_bretagne.py d'abord.")
 
@@ -42,20 +43,28 @@ with col2:
 # Section de recherche avancée
 st.header("Recherche avancée")
 
-dept = st.selectbox("Département", ["22", "29"])
+dept_options = ["Côtes d'Armor (22)", "Finistère (29)", "Ille-et-Vilaine (35)", "Morbihan (56)"]
 
-if dept == "22":
-    csv_file = "csv/STEP01_maisons_dept22.csv"
-elif dept == "29":
-    csv_file = "csv/STEP02_maisons_dept29.csv"
+col_dept, col_ville = st.columns([2, 1])
+
+with col_dept:
+    selected = st.radio("Département", dept_options, horizontal=True)
+
+with col_ville:
+    ville = st.text_input("Ville:")
+
+dept = selected.split('(')[1].strip(')')
+
+csv_file = f"csv/STEP02_maisons_dept{dept}.csv"
 
 try:
     df = pd.read_csv(csv_file)
     
     # Nettoyer les données
     df['Prix'] = pd.to_numeric(df['Prix'].str.replace(' ', '').str.replace('€', ''), errors='coerce')
-    df['Taille'] = pd.to_numeric(df['Taille'], errors='coerce')
-    df['Pieces'] = pd.to_numeric(df['Pieces'], errors='coerce')
+    df['Taille'] = pd.to_numeric(df['Taille'].astype(str).str.replace(' ', ''), errors='coerce')
+    df['Taille_terrain'] = pd.to_numeric(df['Taille_terrain'].astype(str).str.replace(' ', ''), errors='coerce')
+    df['Pieces'] = pd.to_numeric(df['Pieces'].astype(str).str.replace(' ', ''), errors='coerce')
     
     # Filtres
     prix_min = df['Prix'].dropna().min() if not df['Prix'].dropna().empty else 0
@@ -65,9 +74,16 @@ try:
     pieces_min = df['Pieces'].dropna().min() if not df['Pieces'].dropna().empty else 1
     pieces_max = df['Pieces'].dropna().max() if not df['Pieces'].dropna().empty else 10
     
-    min_prix, max_prix = st.slider("Prix (€)", min_value=int(prix_min), max_value=int(prix_max), value=(int(prix_min), int(prix_max)))
-    min_taille, max_taille = st.slider("Taille (m²)", min_value=int(taille_min), max_value=int(taille_max), value=(int(taille_min), int(taille_max)))
-    min_pieces, max_pieces = st.slider("Nombre de pièces", min_value=int(pieces_min), max_value=int(pieces_max), value=(int(pieces_min), int(pieces_max)))
+    col_prix, col_taille, col_pieces = st.columns(3)
+    
+    with col_prix:
+        min_prix, max_prix = st.slider("Prix (€)", min_value=0, max_value=int(prix_max), value=(int(prix_min), int(prix_max)))
+    
+    with col_taille:
+        min_taille, max_taille = st.slider("Taille (m²)", min_value=0, max_value=int(taille_max), value=(int(taille_min), int(taille_max)))
+    
+    with col_pieces:
+        min_pieces, max_pieces = st.slider("Nombre de pièces", min_value=0, max_value=int(pieces_max), value=(int(pieces_min), int(pieces_max)))
     
     # Filtrer
     filtered = df[
@@ -76,8 +92,14 @@ try:
         (df['Pieces'].notna() & (df['Pieces'] >= min_pieces) & (df['Pieces'] <= max_pieces))
     ]
     
+    if ville:
+        filtered = filtered[filtered['Lieu'].str.contains(ville, case=False, na=False)]
+    
+    # Réorganiser les colonnes pour mettre Lien en dernier
+    filtered = filtered[['Nom', 'Prix', 'Lieu', 'Taille', 'Taille_terrain', 'Pieces', 'Lien']]
+    
     # Afficher
-    st.dataframe(filtered, column_config={"Lien": st.column_config.LinkColumn()})
+    st.dataframe(filtered, column_config={"Nom": st.column_config.TextColumn("Nom de l'annonce"), "Prix": st.column_config.NumberColumn("Prix €", format="%.0f"), "Taille": st.column_config.NumberColumn("Taille en m2", format="%.0f"), "Taille_terrain": st.column_config.NumberColumn("Taille du terrain en m2", format="%.0f"), "Pieces": st.column_config.NumberColumn("Nombre de pièces", format="%.0f"), "Lien": st.column_config.LinkColumn()})
     
 except FileNotFoundError:
     st.error(f"Le fichier {csv_file} n'a pas été trouvé.")

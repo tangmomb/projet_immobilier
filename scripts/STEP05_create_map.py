@@ -56,7 +56,7 @@ for index, row in df.iterrows():
             geojson_data, 
             name="Contour de la commune",
             tooltip=f"{name}<br>Maisons à vendre: {count}<br>Prix moyen/m²: {avg_price if pd.notna(avg_price) else 'N/A'} €",
-            style_function=lambda x, color=fill_color: {'fillColor': color, 'color': 'black', 'weight': 2, 'fillOpacity': 0.3}
+            style_function=lambda x, color=fill_color: {'fillColor': color, 'color': 'grey', 'weight': 2, 'fillOpacity': 0.3}
         ).add_to(m)
     except json.JSONDecodeError:
         print(f"Erreur de parsing JSON pour : {row['GPS'][:50]}...")
