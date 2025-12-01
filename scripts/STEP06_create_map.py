@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # Lire le CSV all_bretagne_with_gps
-csv_file = 'csv/all_bretagne_with_gps.csv'
+csv_file = 'csv/STEP05/STEP05_all_bretagne_with_gps.csv'
 if not os.path.exists(csv_file):
     print(f"Le fichier {csv_file} n'existe pas.")
     exit(1)
@@ -17,11 +17,12 @@ df = df[df['GPS'].notna() & (df['GPS'] != '')]
 # Calculer les valeurs min et max pour la normalisation des couleurs
 valid_avgs = df['Prix moyen au m2'].dropna()
 if not valid_avgs.empty:
-    min_price = valid_avgs.min()
-    max_price = valid_avgs.max()
+    q1, q2, q3 = valid_avgs.quantile([0.25, 0.5, 0.75])
+    print(f"Q1 (25%): {q1}")
+    print(f"Q2 (50%): {q2}")
+    print(f"Q3 (75%): {q3}")
 else:
-    min_price = 0
-    max_price = 1  # dummy
+    q1 = q2 = q3 = 0  # dummy
 
 # Créer une carte centrée sur la Bretagne
 m = folium.Map(location=[48.1, -3.15], zoom_start=8, tiles='CartoDB positron')
@@ -42,13 +43,16 @@ for index, row in df.iterrows():
         count = row['Nombre de maisons à vendre']
         avg_price = row['Prix moyen au m2']
         
-        # Calculer la couleur basée sur le prix moyen
-        if pd.notna(avg_price) and max_price > min_price:
-            norm = (avg_price - min_price) / (max_price - min_price)
-            r = int(255 * norm)
-            g = int(255 * (1 - norm))
-            b = 0
-            fill_color = f'#{r:02x}{g:02x}{b:02x}'
+        # Calculer la couleur basée sur les quartiles du prix moyen
+        if pd.notna(avg_price):
+            if avg_price <= q1:
+                fill_color = 'green'
+            elif avg_price <= q2:
+                fill_color = 'yellow'
+            elif avg_price <= q3:
+                fill_color = 'orange'
+            else:
+                fill_color = 'red'
         else:
             fill_color = 'gray'
         
@@ -63,5 +67,4 @@ for index, row in df.iterrows():
 
 
 # Sauvegarder la carte dans un fichier HTML
-os.makedirs("STEP06", exist_ok=True)
-m.save("STEP06/map.html")
+m.save("STEP06_map.html")
