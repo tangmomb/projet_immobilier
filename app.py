@@ -34,12 +34,11 @@ with col1:
 # Colonne droite : carte
 with col2:
     try:
-        with open("map/map.html", "r", encoding="utf-8") as f:
+        with open("STEP06/map.html", "r", encoding="utf-8") as f:
             html_content = f.read()
         components.html(html_content, height=600)
     except FileNotFoundError:
-        st.error("Le fichier map/map.html n'a pas été trouvé. Veuillez exécuter create_map.py d'abord.")
-
+        st.error("Le fichier STEP06/map.html n'a pas été trouvé. Veuillez exécuter create_map.py d'abord.")
 # Section de recherche avancée
 st.header("Recherche avancée")
 

@@ -1,8 +1,12 @@
 import pandas as pd
 import glob
+import os
+
+# Créer le dossier de sortie si nécessaire
+os.makedirs('csv/STEP04', exist_ok=True)
 
 # Trouver tous les fichiers CSV contenant "STEP02" dans le nom
-files = glob.glob("csv/*STEP02*.csv")
+files = glob.glob("csv/STEP03/*STEP03*.csv")
 
 # Liste pour stocker les DataFrames
 dfs = []
@@ -35,4 +39,4 @@ result.rename(columns={'Lien': 'Nombre de maisons à vendre', 'prix_m2': 'Prix m
 result['Prix moyen au m2'] = result['Prix moyen au m2'].round().astype('Int64')
 
 # Écrire dans un nouveau CSV
-result.to_csv('csv/all_bretagne.csv', index=False)
+result.to_csv('csv/STEP04/STEP04_all_bretagne.csv', index=False)

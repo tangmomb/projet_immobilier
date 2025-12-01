@@ -63,5 +63,5 @@ for index, row in df.iterrows():
 
 
 # Sauvegarder la carte dans un fichier HTML
-os.makedirs("map", exist_ok=True)
-m.save("map/map.html")
+os.makedirs("STEP06", exist_ok=True)
+m.save("STEP06/map.html")
