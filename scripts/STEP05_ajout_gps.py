@@ -19,37 +19,31 @@ if not os.path.exists(input_path):
 df_input = pd.read_csv(input_path)
 df_gps = pd.read_csv(gps_path)
 
-# Créer un dict pour lookup rapide : (Nom_de_la_commune (majuscule), Code_postal) -> {'insee': ..., 'geometry': ...}
+# Créer un dict pour lookup rapide : Code_commune_INSEE -> geometry
 gps_dict = {}
 for _, row in df_gps.iterrows():
-    commune = row['Nom_de_la_commune'].strip().upper()
-    code_postal = str(row['Code_postal']).strip()
-    insee = row['#Code_commune_INSEE']
+    insee = str(row['#Code_commune_INSEE']).zfill(5)
     geometry = row['_contours_commune.geometry']
-    key = (commune, code_postal)
-    gps_dict[key] = {'insee': insee, 'geometry': geometry}
+    gps_dict[insee] = geometry
 
-# Ajout des nouvelles colonnes
-df_input['Code INSEE'] = ''
+# Ajout de la colonne GPS
 df_input['GPS'] = ''
+
+# Compteur pour debug
+count = 0
 
 # Pour chaque ligne dans le fichier input
 for index, row in df_input.iterrows():
-    lieu = row['Lieu']
-    if pd.notna(lieu):
-        # Extraire la ville et le code postal
-        parts = lieu.strip().rsplit(None, 1)
-        if len(parts) == 2 and parts[1].isdigit() and len(parts[1]) == 5:
-            ville = parts[0].strip().replace('-', ' ').upper()
-            code_postal = parts[1].strip()
-            key = (ville, code_postal)
-            if key in gps_dict:
-                data = gps_dict[key]
-                df_input.at[index, 'Code INSEE'] = data['insee']
-                df_input.at[index, 'GPS'] = data['geometry']
+    code_insee = str(row['Code INSEE']).zfill(5)
+    if pd.notna(code_insee) and code_insee != '00000':
+        geometry = gps_dict.get(code_insee, '')
+        df_input.at[index, 'GPS'] = geometry
+        if geometry != '':
+            count += 1
 
 # Écriture du nouveau CSV
 output_filename = "STEP05_all_bretagne_with_gps.csv"
 output_path = os.path.join(r"csv\STEP05", output_filename)
 df_input.to_csv(output_path, index=False)
 print(f"Fichier avec GPS créé : {output_path}")
+print(f"GPS trouvé pour {count} communes sur {len(df_input)}")

@@ -27,7 +27,7 @@ def get_random_headers():
     }
 
 # Function to scrape properties
-async def scrape_properties(base_url, csv_filename, lock_write, existing_links, lock_links):
+async def scrape_properties(base_url, com, csv_filename, lock_write, existing_links, lock_links):
     async with aiohttp.ClientSession() as session:
         total_properties = 0
         page = 1
@@ -60,7 +60,7 @@ async def scrape_properties(base_url, csv_filename, lock_write, existing_links, 
                                 async with lock_links:
                                     if full_link not in existing_links:
                                         existing_links.add(full_link)
-                                        page_properties.append({'Ville': city, 'Nom': name, 'Lien': full_link})
+                                        page_properties.append({'Ville': city, 'Nom': name, 'Lien': full_link, 'Code INSEE': com, 'Page Lien': url})
                     
                     if not page_properties:
                         print(f"No more properties on page {page}. Stopping.")
@@ -120,14 +120,10 @@ else:
     sys.exit(1)
 
 # Create CSV with headers if it doesn't exist
-if not os.path.exists(csv_filename):
-    pd.DataFrame(columns=['Ville', 'Nom', 'Lien']).to_csv(csv_filename, index=False)
+pd.DataFrame(columns=['Ville', 'Nom', 'Lien', 'Code INSEE', 'Page Lien']).to_csv(csv_filename, index=False)
 
 # Load existing links to avoid duplicates
 existing_links = set()
-if os.path.exists(csv_filename):
-    df_existing = pd.read_csv(csv_filename)
-    existing_links = set(df_existing['Lien'].tolist())
 
 lock_write = asyncio.Lock()
 lock_links = asyncio.Lock()
@@ -135,7 +131,7 @@ lock_links = asyncio.Lock()
 async def scrape_city(com):
     base_url = f"https://www.etreproprio.com/annonces/{prefix}.lc{com}-r0"
     print(f"Scraping pour la commune {com}...")
-    await scrape_properties(base_url, csv_filename, lock_write, existing_links, lock_links)
+    await scrape_properties(base_url, com, csv_filename, lock_write, existing_links, lock_links)
 
 semaphore = asyncio.Semaphore(3)  # Limit concurrent cities to 3
 

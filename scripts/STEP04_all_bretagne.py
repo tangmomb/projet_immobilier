@@ -27,13 +27,17 @@ all_data['Taille_num'] = pd.to_numeric(all_data['Taille'].astype(str).str.replac
 all_data['prix_m2'] = all_data['Prix_num'] / all_data['Taille_num']
 
 # Grouper par Lieu, compter les maisons, moyenner le prix au m²
-result = all_data.groupby('Lieu').agg({
+result = all_data.groupby('Code INSEE').agg({
     'Lien': 'count',
-    'prix_m2': 'mean'
+    'prix_m2': 'mean',
+    'Lieu': 'first'
 }).reset_index()
 
 # Renommer les colonnes
-result.rename(columns={'Lien': 'Nombre de maisons à vendre', 'prix_m2': 'Prix moyen au m2'}, inplace=True)
+result.rename(columns={'Lien': 'Nombre de maisons à vendre', 'prix_m2': 'Prix moyen au m2', 'Lieu': 'Ville'}, inplace=True)
+
+# Convertir Code INSEE en string sans .0
+result['Code INSEE'] = result['Code INSEE'].astype(int).astype(str)
 
 # Arrondir le prix moyen à l'entier le plus proche
 result['Prix moyen au m2'] = result['Prix moyen au m2'].round().astype('Int64')
