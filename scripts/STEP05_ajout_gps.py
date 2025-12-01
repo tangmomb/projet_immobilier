@@ -22,9 +22,11 @@ df_gps = pd.read_csv(gps_path)
 # Créer un dict pour lookup rapide : Code_commune_INSEE -> geometry
 gps_dict = {}
 for _, row in df_gps.iterrows():
-    insee = str(row['#Code_commune_INSEE']).zfill(5)
-    geometry = row['_contours_commune.geometry']
-    gps_dict[insee] = geometry
+    insee_str = str(row['#Code_commune_INSEE'])
+    if insee_str.isdigit():
+        insee = int(insee_str)
+        geometry = row['_contours_commune.geometry']
+        gps_dict[insee] = geometry
 
 # Ajout de la colonne GPS
 df_input['GPS'] = ''
@@ -34,8 +36,9 @@ count = 0
 
 # Pour chaque ligne dans le fichier input
 for index, row in df_input.iterrows():
-    code_insee = str(row['Code INSEE']).zfill(5)
-    if pd.notna(code_insee) and code_insee != '00000':
+    code_str = str(row['Code INSEE'])
+    if code_str.isdigit():
+        code_insee = int(code_str)
         geometry = gps_dict.get(code_insee, '')
         df_input.at[index, 'GPS'] = geometry
         if geometry != '':

@@ -22,10 +22,12 @@ with col1:
         if st.button("Réinitialiser la recherche"):
             st.session_state['reset_search'] = True
         if search:
-            filtered_df = df_agg[df_agg['Lieu'].str.contains(search, case=False, na=False)]
+            filtered_df = df_agg[df_agg['Ville'].str.contains(search, case=False, na=False)]
         else:
             filtered_df = df_agg
-        st.write("Lieu, Maisons en vente, Prix moyen au m2")
+        # Réorganiser les colonnes : Ville, Nombre de maisons à vendre, Prix moyen au m2
+        filtered_df = filtered_df[['Ville', 'Nombre de maisons à vendre', 'Prix moyen au m2']]
+        st.write("Ville / Maisons en vente / Prix moyen au m2")
         st.write(f'<div style="height:400px; overflow-y:scroll;">{filtered_df.to_html(index=False, header=False)}</div>', unsafe_allow_html=True)
     except FileNotFoundError:
         st.error("Le fichier csv/all_bretagne.csv n'a pas été trouvé. Veuillez exécuter all_bretagne.py d'abord.")
@@ -105,3 +107,40 @@ with st.expander("Recherche avancée"):
         st.error(f"Le fichier {csv_file} n'a pas été trouvé.")
     except Exception as e:
         st.error(f"Erreur lors du chargement des données: {e}")
+
+# Section de statistiques
+with st.expander("Statistiques des prix immobiliers"):
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        
+        # Charger les données
+        df_stats = pd.read_csv("csv/STEP05/STEP05_all_bretagne_with_gps.csv")
+        df_stats = df_stats[df_stats['GPS'].notna() & (df_stats['GPS'] != '')]
+        prix = df_stats['Prix moyen au m2'].dropna()
+        
+        # Afficher les statistiques
+        st.write("**Valeurs statistiques des prix moyens au m² :**")
+        col_min, col_q1, col_med, col_q3, col_max = st.columns(5)
+        with col_min:
+            st.metric("Minimum", f"{prix.min():.0f} €")
+        with col_q1:
+            st.metric("Q1 (25%)", f"{prix.quantile(0.25):.0f} €")
+        with col_med:
+            st.metric("Médiane", f"{prix.quantile(0.5):.0f} €")
+        with col_q3:
+            st.metric("Q3 (75%)", f"{prix.quantile(0.75):.0f} €")
+        with col_max:
+            st.metric("Maximum", f"{prix.max():.0f} €")
+        
+        # Afficher le boxplot
+        st.write("**Distribution des prix (sans outliers) :**")
+        fig, ax = plt.subplots(figsize=(8, 4))
+        sns.boxplot(data=prix, orient='h', showfliers=False, ax=ax)
+        ax.set_xlabel('Prix au m² (€)')
+        st.pyplot(fig)
+        
+    except FileNotFoundError:
+        st.error("Le fichier csv/STEP05/STEP05_all_bretagne_with_gps.csv n'a pas été trouvé.")
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des statistiques: {e}")
