@@ -76,16 +76,51 @@ with st.expander("Recherche avancée"):
         pieces_min = df['Pieces'].dropna().min() if not df['Pieces'].dropna().empty else 1
         pieces_max = df['Pieces'].dropna().max() if not df['Pieces'].dropna().empty else 10
         
-        col_prix, col_taille, col_pieces = st.columns(3)
+        col_main1, col_main2 = st.columns(2)
         
-        with col_prix:
-            min_prix, max_prix = st.slider("Prix (€)", min_value=0, max_value=int(prix_max), value=(int(prix_min), int(prix_max)))
+        with col_main1:
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                prix_ranges = ["0 - 100 000 €", "100 000 - 200 000 €", "200 000 - 300 000 €", "300 000 € et plus"]
+                selected_prix = st.radio("Prix (€)", prix_ranges)
+                
+                if selected_prix == "0 - 100 000 €":
+                    min_prix, max_prix = 0, 100000
+                elif selected_prix == "100 000 - 200 000 €":
+                    min_prix, max_prix = 100000, 200000
+                elif selected_prix == "200 000 - 300 000 €":
+                    min_prix, max_prix = 200000, 300000
+                else:
+                    min_prix, max_prix = 300000, int(prix_max)
+
+            with col2:
+                taille_ranges = ["0 - 100 m²", "100 - 200 m²", "200 - 300 m²", "300 m² et plus"]
+                selected_taille = st.radio("Taille (m²)", taille_ranges)
+                
+                if selected_taille == "0 - 100 m²":
+                    min_taille, max_taille = 0, 100
+                elif selected_taille == "100 - 200 m²":
+                    min_taille, max_taille = 100, 200
+                elif selected_taille == "200 - 300 m²":
+                    min_taille, max_taille = 200, 300
+                else:
+                    min_taille, max_taille = 300, int(taille_max)
+            
+            with col3 :
+                pieces_ranges = ["1 - 3 pièces", "4 - 6 pièces", "7 - 9 pièces", "10 pièces et plus"]
+                selected_pieces = st.radio("Nombre de pièces", pieces_ranges)
+                
+                if selected_pieces == "1 - 3 pièces":
+                    min_pieces, max_pieces = 1, 3
+                elif selected_pieces == "4 - 6 pièces":
+                    min_pieces, max_pieces = 4, 6
+                elif selected_pieces == "7 - 9 pièces":
+                    min_pieces, max_pieces = 7, 9
+                else:
+                    min_pieces, max_pieces = 10, int(pieces_max)
         
-        with col_taille:
-            min_taille, max_taille = st.slider("Taille (m²)", min_value=0, max_value=int(taille_max), value=(int(taille_min), int(taille_max)))
         
-        with col_pieces:
-            min_pieces, max_pieces = st.slider("Nombre de pièces", min_value=0, max_value=int(pieces_max), value=(int(pieces_min), int(pieces_max)))
         
         # Filtrer
         filtered = df[
