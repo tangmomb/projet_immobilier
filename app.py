@@ -47,21 +47,52 @@ with st.expander("Recherche avancée"):
 
     dept_options = ["Côtes d'Armor (22)", "Finistère (29)", "Ille-et-Vilaine (35)", "Morbihan (56)"]
 
-    col_dept, col_ville = st.columns([2, 1])
+    depts = {"22": "Côtes d'Armor (22)", "29": "Finistère (29)", "35": "Ille-et-Vilaine (35)", "56": "Morbihan (56)"}
+    ville_to_dept = {}
+    for dept_code in ["22", "29", "35", "56"]:
+        try:
+            df_comm = pd.read_csv(f"csv/STEP00/communes_dept{dept_code}.csv")
+            for ville in df_comm['LIBELLE'].str.lower().unique():
+                ville_to_dept[ville] = depts[dept_code]
+        except:
+            pass
 
-    with col_dept:
-        selected = st.radio("Département", dept_options, horizontal=True)
+    col_dept, col_ville = st.columns([2, 1])
 
     with col_ville:
         ville = st.text_input("Ville:")
 
-    dept = selected.split('(')[1].strip(')')
+    dept_defaults = [True] * 4
+    if ville.strip():
+        ville_lower = ville.strip().lower()
+        if ville_lower in ville_to_dept:
+            target_dept = ville_to_dept[ville_lower]
+            dept_defaults = [opt == target_dept for opt in dept_options]
 
-    csv_file = f"csv/STEP02/STEP02_maisons_dept{dept}.csv"
+    with col_dept:
+        st.write("Départements")
+        dept_checks = [st.checkbox(opt, value=default) for opt, default in zip(dept_options, dept_defaults)]
+        selected_depts = [opt for opt, checked in zip(dept_options, dept_checks) if checked]
 
+    # Load data for selected departments
+    if selected_depts:
+        dfs = []
+        for selected in selected_depts:
+            dept = selected.split('(')[1].strip(')')
+            csv_file = f"csv/STEP02/STEP02_maisons_dept{dept}.csv"
+            try:
+                df_temp = pd.read_csv(csv_file)
+                dfs.append(df_temp)
+            except FileNotFoundError:
+                st.error(f"Le fichier {csv_file} n'a pas été trouvé.")
+        if dfs:
+            df = pd.concat(dfs, ignore_index=True)
+        else:
+            df = pd.DataFrame()
+    else:
+        st.warning("Veuillez sélectionner au moins un département.")
+        df = pd.DataFrame()
     try:
-        df = pd.read_csv(csv_file)
-        
         # Nettoyer les données
         df['Prix'] = pd.to_numeric(df['Prix'].astype(str).str.replace(' ', '').str.replace('€', ''), errors='coerce')
         df['Taille'] = pd.to_numeric(df['Taille'].astype(str).str.replace(' ', ''), errors='coerce')
@@ -138,8 +169,6 @@ with st.expander("Recherche avancée"):
         # Afficher
         st.dataframe(filtered, column_config={"Nom": st.column_config.TextColumn("Nom de l'annonce"), "Prix": st.column_config.NumberColumn("Prix €", format="%.0f"), "Taille": st.column_config.NumberColumn("Taille en m2", format="%.0f"), "Taille_terrain": st.column_config.NumberColumn("Taille du terrain en m2", format="%.0f"), "Pieces": st.column_config.NumberColumn("Nombre de pièces", format="%.0f"), "Lien": st.column_config.LinkColumn()})
         
-    except FileNotFoundError:
-        st.error(f"Le fichier {csv_file} n'a pas été trouvé.")
     except Exception as e:
         st.error(f"Erreur lors du chargement des données: {e}")
 
