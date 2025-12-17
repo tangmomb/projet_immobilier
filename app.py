@@ -38,6 +38,22 @@ with col2:
         with open("STEP06_map.html", "r", encoding="utf-8") as f:
             html_content = f.read()
         components.html(html_content, height=600)
+        
+        # Légende des couleurs
+        st.markdown("""
+        <div style="width:100%; padding:2px 10px; background-color:white; margin-top:10px; margin-bottom:20px; color:gray;">
+        <div style="display:flex; justify-content:flex-start; align-items:center;">
+        <span style="margin-right:20px; font-weight:bold;">Prix moyen au m² :</span>
+        <div style="display:flex; justify-content:space-around; align-items:center; flex:1;">
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#4CAF50; margin-right:5px; border-radius:50%;"></div> ≤ 1614.75 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FFC107; margin-right:5px; border-radius:50%;"></div> 1614.75 - 2062.0 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FF9800; margin-right:5px; border-radius:50%;"></div> 2062.0 - 2577.5 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#F44336; margin-right:5px; border-radius:50%;"></div> > 2577.5 €</div>
+        </div>
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
     except FileNotFoundError:
         st.error("Le fichier STEP06_map.html n'a pas été trouvé. Veuillez exécuter create_map.py d'abord.")
 
@@ -113,52 +129,67 @@ with st.expander("Recherche avancée"):
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                prix_ranges = ["0 - 100 000 €", "100 000 - 200 000 €", "200 000 - 300 000 €", "300 000 € et plus"]
-                selected_prix = st.radio("Prix (€)", prix_ranges)
-                
-                if selected_prix == "0 - 100 000 €":
-                    min_prix, max_prix = 0, 100000
-                elif selected_prix == "100 000 - 200 000 €":
-                    min_prix, max_prix = 100000, 200000
-                elif selected_prix == "200 000 - 300 000 €":
-                    min_prix, max_prix = 200000, 300000
+                st.write("Prix (€)")
+                prix_0 = st.checkbox("0 - 100 000 €")
+                prix_1 = st.checkbox("100 000 - 200 000 €")
+                prix_2 = st.checkbox("200 000 - 300 000 €")
+                prix_3 = st.checkbox("300 000 € et plus")
+                checked_prix = [prix_0, prix_1, prix_2, prix_3]
+                ranges_prix = [(0, 100000), (100000, 200000), (200000, 300000), (300000, int(prix_max))]
+                if any(checked_prix):
+                    selected_ranges = [r for c, r in zip(checked_prix, ranges_prix) if c]
+                    min_prix = min(r[0] for r in selected_ranges)
+                    max_prix = max(r[1] for r in selected_ranges)
                 else:
-                    min_prix, max_prix = 300000, int(prix_max)
+                    min_prix = max_prix = None
 
             with col2:
-                taille_ranges = ["0 - 100 m²", "100 - 200 m²", "200 - 300 m²", "300 m² et plus"]
-                selected_taille = st.radio("Taille (m²)", taille_ranges)
-                
-                if selected_taille == "0 - 100 m²":
-                    min_taille, max_taille = 0, 100
-                elif selected_taille == "100 - 200 m²":
-                    min_taille, max_taille = 100, 200
-                elif selected_taille == "200 - 300 m²":
-                    min_taille, max_taille = 200, 300
+                st.write("Taille (m²)")
+                taille_0 = st.checkbox("0 - 100 m²")
+                taille_1 = st.checkbox("100 - 200 m²")
+                taille_2 = st.checkbox("200 - 300 m²")
+                taille_3 = st.checkbox("300 m² et plus")
+                checked_taille = [taille_0, taille_1, taille_2, taille_3]
+                ranges_taille = [(0, 100), (100, 200), (200, 300), (300, int(taille_max))]
+                if any(checked_taille):
+                    selected_ranges = [r for c, r in zip(checked_taille, ranges_taille) if c]
+                    min_taille = min(r[0] for r in selected_ranges)
+                    max_taille = max(r[1] for r in selected_ranges)
                 else:
-                    min_taille, max_taille = 300, int(taille_max)
+                    min_taille = max_taille = None
             
             with col3 :
-                pieces_ranges = ["1 - 3 pièces", "4 - 6 pièces", "7 - 9 pièces", "10 pièces et plus"]
-                selected_pieces = st.radio("Nombre de pièces", pieces_ranges)
-                
-                if selected_pieces == "1 - 3 pièces":
-                    min_pieces, max_pieces = 1, 3
-                elif selected_pieces == "4 - 6 pièces":
-                    min_pieces, max_pieces = 4, 6
-                elif selected_pieces == "7 - 9 pièces":
-                    min_pieces, max_pieces = 7, 9
+                st.write("Nombre de pièces")
+                pieces_0 = st.checkbox("1 - 3 pièces")
+                pieces_1 = st.checkbox("4 - 6 pièces")
+                pieces_2 = st.checkbox("7 - 9 pièces")
+                pieces_3 = st.checkbox("10 pièces et plus")
+                checked_pieces = [pieces_0, pieces_1, pieces_2, pieces_3]
+                ranges_pieces = [(1, 3), (4, 6), (7, 9), (10, int(pieces_max))]
+                if any(checked_pieces):
+                    selected_ranges = [r for c, r in zip(checked_pieces, ranges_pieces) if c]
+                    min_pieces = min(r[0] for r in selected_ranges)
+                    max_pieces = max(r[1] for r in selected_ranges)
                 else:
-                    min_pieces, max_pieces = 10, int(pieces_max)
+                    min_pieces = max_pieces = None
         
         
         
         # Filtrer
-        filtered = df[
-            (df['Prix'].notna() & (df['Prix'] >= min_prix) & (df['Prix'] <= max_prix)) &
-            (df['Taille'].notna() & (df['Taille'] >= min_taille) & (df['Taille'] <= max_taille)) &
-            (df['Pieces'].notna() & (df['Pieces'] >= min_pieces) & (df['Pieces'] <= max_pieces))
-        ]
+        conditions = []
+        if min_prix is not None:
+            conditions.append(df['Prix'].notna() & (df['Prix'] >= min_prix) & (df['Prix'] <= max_prix))
+        if min_taille is not None:
+            conditions.append(df['Taille'].notna() & (df['Taille'] >= min_taille) & (df['Taille'] <= max_taille))
+        if min_pieces is not None:
+            conditions.append(df['Pieces'].notna() & (df['Pieces'] >= min_pieces) & (df['Pieces'] <= max_pieces))
+        if conditions:
+            combined_condition = conditions[0]
+            for cond in conditions[1:]:
+                combined_condition &= cond
+            filtered = df[combined_condition]
+        else:
+            filtered = df
         
         if ville:
             filtered = filtered[filtered['Lieu'].str.contains(ville, case=False, na=False)]
