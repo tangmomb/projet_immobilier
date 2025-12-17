@@ -2,48 +2,25 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
+# Couleurs de l'application (utilisables partout)
+background_color = "#08131F"
+border_color = "#1A4879"
+text_highlight_color = "#239CFF"
+
 st.set_page_config(layout="wide")
 
-st.title("Carte des maisons à vendre en Bretagne")
+st.title("Marché de l'immobilier en Bretagne")
 
-# Créer deux colonnes : gauche 1/4, droite 3/4
-col1, col2 = st.columns([1, 3])
-
-# Colonne gauche : tableau avec recherche
-with col1:
-    # Afficher les données agrégées
-    try:
-        df_agg = pd.read_csv("csv/STEP04/STEP04_all_bretagne.csv")
-        if 'reset_search' not in st.session_state:
-            st.session_state['reset_search'] = False
-        search = st.text_input("Rechercher une ville:", value="" if st.session_state['reset_search'] else None)
-        if st.session_state['reset_search']:
-            st.session_state['reset_search'] = False
-        if st.button("Réinitialiser la recherche"):
-            st.session_state['reset_search'] = True
-        if search:
-            filtered_df = df_agg[df_agg['Ville'].str.contains(search, case=False, na=False)]
-        else:
-            filtered_df = df_agg
-        # Réorganiser les colonnes : Ville, Nombre de maisons à vendre, Prix moyen au m2
-        filtered_df = filtered_df[['Ville', 'Nombre de maisons à vendre', 'Prix moyen au m2']]
-        st.write("Ville / Maisons en vente / Prix moyen au m2")
-        st.write(f'<div style="height:400px; overflow-y:scroll;">{filtered_df.to_html(index=False, header=False)}</div>', unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.error("Le fichier csv/all_bretagne.csv n'a pas été trouvé. Veuillez exécuter all_bretagne.py d'abord.")
-
-# Colonne droite : carte
-with col2:
-    try:
+try:
         with open("STEP06_map.html", "r", encoding="utf-8") as f:
             html_content = f.read()
         components.html(html_content, height=600)
         
         # Légende des couleurs
-        st.markdown("""
-        <div style="width:100%; padding:2px 10px; background-color:white; margin-top:10px; margin-bottom:20px; color:gray;">
+        st.markdown(f"""
+        <div style="width:100%; padding:2px 10px; background-color:{background_color}; margin-top:10px; margin-bottom:20px; color:white; border:1px solid {border_color};">
         <div style="display:flex; justify-content:flex-start; align-items:center;">
-        <span style="margin-right:20px; font-weight:bold;">Prix moyen au m² :</span>
+        <span style="margin-right:20px; font-weight:bold; color:{text_highlight_color};">Prix moyen au m² :</span>
         <div style="display:flex; justify-content:space-around; align-items:center; flex:1;">
         <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#4CAF50; margin-right:5px; border-radius:50%;"></div> ≤ 1614.75 €</div>
         <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FFC107; margin-right:5px; border-radius:50%;"></div> 1614.75 - 2062.0 €</div>
@@ -54,7 +31,7 @@ with col2:
         </div>
         """, unsafe_allow_html=True)
         
-    except FileNotFoundError:
+except FileNotFoundError:
         st.error("Le fichier STEP06_map.html n'a pas été trouvé. Veuillez exécuter create_map.py d'abord.")
 
 
@@ -172,9 +149,7 @@ with st.expander("Recherche avancée"):
                     max_pieces = max(r[1] for r in selected_ranges)
                 else:
                     min_pieces = max_pieces = None
-        
-        
-        
+
         # Filtrer
         conditions = []
         if min_prix is not None:
@@ -194,11 +169,28 @@ with st.expander("Recherche avancée"):
         if ville:
             filtered = filtered[filtered['Lieu'].str.contains(ville, case=False, na=False)]
         
+        with col_main2:
+            st.markdown(f"""
+            <div style="background-color: {background_color};
+                        padding: 15px;
+                        border: 1px solid {border_color};
+                        text-align: center;
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: rgb(255 255 255);">
+            Nombre de maisons selon les critères sélectionnés : <br><span style="font-size: 28px; color: {text_highlight_color}; font-weight: 400;">{len(filtered)}</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        
+        
+
+        
         # Réorganiser les colonnes pour mettre Lien en dernier
         filtered = filtered[['Nom', 'Prix', 'Lieu', 'Taille', 'Taille_terrain', 'Pieces', 'Lien']]
         
         # Afficher
-        st.dataframe(filtered, column_config={"Nom": st.column_config.TextColumn("Nom de l'annonce"), "Prix": st.column_config.NumberColumn("Prix €", format="%.0f"), "Taille": st.column_config.NumberColumn("Taille en m2", format="%.0f"), "Taille_terrain": st.column_config.NumberColumn("Taille du terrain en m2", format="%.0f"), "Pieces": st.column_config.NumberColumn("Nombre de pièces", format="%.0f"), "Lien": st.column_config.LinkColumn()})
+        st.dataframe(filtered, hide_index=True, column_config={"Nom": st.column_config.TextColumn("Nom de l'annonce"), "Prix": st.column_config.NumberColumn("Prix €", format="%.0f"), "Taille": st.column_config.NumberColumn("Taille en m2", format="%.0f"), "Taille_terrain": st.column_config.NumberColumn("Taille du terrain en m2", format="%.0f"), "Pieces": st.column_config.NumberColumn("Nombre de pièces", format="%.0f"), "Lien": st.column_config.LinkColumn()})
         
     except Exception as e:
         st.error(f"Erreur lors du chargement des données: {e}")
