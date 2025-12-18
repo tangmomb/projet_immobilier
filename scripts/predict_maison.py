@@ -1,38 +1,51 @@
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
+from sklearn.metrics import mean_squared_error, r2_score
 
-# Load the CSV data (replace 'houses.csv' with your actual file path)
-data = pd.read_csv('csv/STEP03/STEP03_maisons_dept22_sans_outliers.csv')
+# Modèles
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.svm import SVR
 
-# Assume columns: 'city', 'size', 'rooms', 'price'
-X = data[['city', 'size', 'rooms']]
-y = data['price']
+# Charger les données
+df = pd.read_csv("csv/STEP03/STEP03_maisons_dept22_sans_outliers.csv")
 
-# Preprocess: One-hot encode 'city'
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('cat', OneHotEncoder(), ['city'])
-    ],
-    remainder='passthrough'
+# Features (X) et cible (y)
+X = df[["Code INSEE", "Taille"]]
+y = df["Prix"]
+
+# Séparer en train/test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
 )
 
-# Create pipeline with preprocessing and linear regression
-model = Pipeline(steps=[
-    ('preprocessor', preprocessor),
-    ('regressor', LinearRegression())
-])
+# Liste des modèles à tester
+models = {
+    "Linear Regression": LinearRegression(),
+    "Ridge": Ridge(),
+    "Lasso": Lasso(),
+    "KNN": KNeighborsRegressor(),
+    "Random Forest": RandomForestRegressor(),
+    "Gradient Boosting": GradientBoostingRegressor(),
+    "SVR": SVR()
+}
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Tester chaque modèle
+results = []
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    results.append((name, mse, r2))
 
-# Train the model
-model.fit(X_train, y_train)
+# Afficher les résultats
+print("Résultats comparés :")
+for name, mse, r2 in results:
+    print(f"{name:20s} -> MSE: {mse:,.2f}, R²: {r2:.4f}")
 
-# Predict for a new house (example: city='Paris', size=100, rooms=3)
-new_house = pd.DataFrame({'city': ['Paris'], 'size': [100], 'rooms': [3]})
-predicted_price = model.predict(new_house)
-print(f"Predicted price: {predicted_price[0]}")
+# Trouver le meilleur modèle
+best_model = max(results, key=lambda x: x[2])  # meilleur R²
+print("\n🏆 Meilleur modèle :", best_model[0], f"(R² = {best_model[2]:.4f})")
