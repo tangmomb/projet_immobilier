@@ -18,7 +18,7 @@ st.title("Marché de l'immobilier en Bretagne")
 
 
 try:
-        with open("STEP06_map.html", "r", encoding="utf-8") as f:
+        with open("STEP07_map.html", "r", encoding="utf-8") as f:
             html_content = f.read()
         components.html(html_content, height=600)
         
@@ -28,10 +28,10 @@ try:
         <div style="display:flex; justify-content:flex-start; align-items:center;">
         <span style="margin-right:20px; font-weight:bold; color:{text_highlight_color};">Prix moyen au m² :</span>
         <div style="display:flex; justify-content:space-around; align-items:center; flex:1;">
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#4CAF50; margin-right:5px; border-radius:50%;"></div> ≤ 1614.75 €</div>
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FFC107; margin-right:5px; border-radius:50%;"></div> 1614.75 - 2062.0 €</div>
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FF9800; margin-right:5px; border-radius:50%;"></div> 2062.0 - 2577.5 €</div>
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#F44336; margin-right:5px; border-radius:50%;"></div> > 2577.5 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#4CAF50; margin-right:5px; border-radius:50%;"></div> ≤ 1632.0 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FFC107; margin-right:5px; border-radius:50%;"></div> 1632.0 - 2073.0 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FF9800; margin-right:5px; border-radius:50%;"></div> 2073.0 - 2575.0 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#F44336; margin-right:5px; border-radius:50%;"></div> > 2575.0 €</div>
         </div>
         </div>
         </div>
@@ -39,7 +39,7 @@ try:
         st.markdown(legend_html, unsafe_allow_html=True)
         
 except FileNotFoundError:
-        st.error("Le fichier STEP06_map.html n'a pas été trouvé. Veuillez exécuter create_map.py d'abord.")
+        st.error("Le fichier STEP07_map.html n'a pas été trouvé. Veuillez exécuter create_map.py d'abord.")
 
 
 # Section de recherche avancée
@@ -79,7 +79,7 @@ with st.expander("Recherche avancée"):
         dfs = []
         for selected in selected_depts:
             dept = selected.split('(')[1].strip(')')
-            csv_file = f"csv/STEP02/STEP02_maisons_dept{dept}.csv"
+            csv_file = f"csv/STEP04/STEP04_maisons_dept{dept}.csv"
             try:
                 df_temp = pd.read_csv(csv_file)
                 dfs.append(df_temp)
@@ -197,7 +197,7 @@ with st.expander("Recherche avancée"):
         filtered = filtered[['Nom', 'Prix', 'Lieu', 'Taille', 'Taille_terrain', 'Pieces', 'Lien']]
         
         # Afficher
-        st.dataframe(filtered, column_config={"Nom": st.column_config.TextColumn("Nom de l'annonce"), "Prix": st.column_config.NumberColumn("Prix €", format="%.0f"), "Taille": st.column_config.NumberColumn("Taille en m2", format="%.0f"), "Taille_terrain": st.column_config.NumberColumn("Taille du terrain en m2", format="%.0f"), "Pieces": st.column_config.NumberColumn("Nombre de pièces", format="%.0f"), "Lien": st.column_config.LinkColumn()})
+        st.dataframe(filtered, hide_index=True, column_config={"Nom": st.column_config.TextColumn("Nom de l'annonce"), "Prix": st.column_config.NumberColumn("Prix €", format="%.0f"), "Taille": st.column_config.NumberColumn("Taille en m2", format="%.0f"), "Taille_terrain": st.column_config.NumberColumn("Taille du terrain en m2", format="%.0f"), "Pieces": st.column_config.NumberColumn("Nombre de pièces", format="%.0f"), "Lien": st.column_config.LinkColumn()})
         
     except Exception as e:
         st.error(f"Erreur lors du chargement des données: {e}")
@@ -209,7 +209,7 @@ with st.expander("Statistiques des prix immobiliers"):
         import seaborn as sns
         
         # Charger les données
-        df_stats = pd.read_csv("csv/STEP05/STEP05_all_bretagne_with_gps.csv")
+        df_stats = pd.read_csv("csv/STEP06/STEP06_all_bretagne_with_gps.csv")
         df_stats = df_stats[df_stats['GPS'].notna() & (df_stats['GPS'] != '')]
         prix = df_stats['Prix moyen au m2'].dropna()
         
@@ -235,7 +235,7 @@ with st.expander("Statistiques des prix immobiliers"):
         st.pyplot(fig)
         
     except FileNotFoundError:
-        st.error("Le fichier csv/STEP05/STEP05_all_bretagne_with_gps.csv n'a pas été trouvé.")
+        st.error("Le fichier csv/STEP06/STEP06_all_bretagne_with_gps.csv n'a pas été trouvé.")
     except Exception as e:
         st.error(f"Erreur lors du chargement des statistiques: {e}")
 

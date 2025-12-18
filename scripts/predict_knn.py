@@ -4,8 +4,8 @@ from sklearn.neighbors import NearestNeighbors
 import glob
 
 def load_knn_data():
-    # --- Charger tous les CSV du dossier STEP03 ---
-    files = glob.glob("csv/STEP03/STEP03_maisons_dept*_sans_outliers.csv")
+    # --- Charger tous les CSV du dossier STEP04 ---
+    files = glob.glob("csv/STEP04/STEP04_maisons_dept*.csv")
     df_list = []
     for file in files:
         df_temp = pd.read_csv(file)
@@ -64,10 +64,10 @@ def knn_estimation(df, ville, taille, terrain=None, pieces=None, k=2, max_distan
     return prix_estime, houses_data
 
 # --- Exemple d'utilisation ---
-ville_code_insee = 22006  # Code INSEE de la commune (entier)
-taille_maison = 175          # m²
-terrain_maison = 4227         # m²
-pieces_maison = 10            # nombre de pièces
+ville_code_insee = 22001  # Code INSEE de la commune (entier)
+taille_maison = 476          # m²
+terrain_maison = 8848         # m²
+pieces_maison = 21            # nombre de pièces
 
 df = load_knn_data()
 prix, maisons = knn_estimation(df, ville_code_insee, taille_maison, terrain_maison, pieces_maison, k=2, max_distance=500)
@@ -77,4 +77,4 @@ if prix is not None:
     for maison in maisons:
         print(f"- {maison['Nom']}: {maison['Lien']}")
 else:
-    print(voisins)
+    print(" Erreur :", maisons)
