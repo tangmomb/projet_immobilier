@@ -57,14 +57,21 @@ with st.expander("Recherche avancée"):
         except:
             pass
 
+    def clear_ville():
+        st.session_state.ville_input = ""
+
+    if "ville_input" not in st.session_state:
+        st.session_state.ville_input = ""
+
     col_dept, col_ville = st.columns([2, 1])
 
     with col_ville:
-        ville = st.text_input("Ville:")
+        ville = st.text_input("Ville:", value=st.session_state.ville_input, key="ville_input")
+        st.button("Effacer", on_click=clear_ville)
 
     dept_defaults = [True] * 4
-    if ville.strip():
-        ville_lower = ville.strip().lower()
+    if st.session_state.ville_input.strip():
+        ville_lower = st.session_state.ville_input.strip().lower()
         if ville_lower in ville_to_dept:
             target_dept = ville_to_dept[ville_lower]
             dept_defaults = [opt == target_dept for opt in dept_options]
