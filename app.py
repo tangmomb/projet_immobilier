@@ -15,13 +15,11 @@ st.set_page_config(layout="wide")
 
 st.title("Marché de l'immobilier en Bretagne")
 
-
-
 try:
     # Charger les cartes
-    with open("STEP07_map_prix.html", "r", encoding="utf-8") as f:
+    with open("maps/STEP07_map_prix.html", "r", encoding="utf-8") as f:
         prix_html = f.read()
-    with open("STEP07_map_densite.html", "r", encoding="utf-8") as f:
+    with open("maps/STEP07_map_densite.html", "r", encoding="utf-8") as f:
         densite_html = f.read()
     
     # Afficher en 2 colonnes
@@ -52,7 +50,7 @@ try:
         components.html(densite_html, height=600)
         
 except FileNotFoundError:
-    st.error("Les fichiers STEP07_map_prix.html et/ou STEP07_map_densite.html n'ont pas été trouvés. Veuillez exécuter STEP07_create_map.py d'abord.")
+    st.error("Les fichiers maps/STEP07_map_prix.html et/ou maps/STEP07_map_densite.html n'ont pas été trouvés. Veuillez exécuter STEP07_create_map.py d'abord.")
 
 
 # Section de recherche avancée

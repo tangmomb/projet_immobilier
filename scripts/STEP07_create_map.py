@@ -5,6 +5,9 @@ import json
 import pandas as pd
 import os
 
+# Créer le dossier maps s'il n'existe pas
+os.makedirs('maps', exist_ok=True)
+
 # Lire le CSV all_bretagne_with_gps
 csv_file = 'csv/STEP06/STEP06_all_bretagne_with_gps.csv'
 if not os.path.exists(csv_file):
@@ -69,7 +72,7 @@ for index, row in df.iterrows():
 
 
 # Sauvegarder la carte dans un fichier HTML
-m.save("STEP07_map_prix.html")
+m.save("maps/STEP07_map_prix.html")
 
 
 
@@ -99,4 +102,4 @@ heat_data = [[point.y, point.x, nb] for point, nb in zip(gdf_points.geometry, gd
 HeatMap(heat_data, radius=12).add_to(m)
 
 # Afficher la carte
-m.save("STEP07_map_densite.html")
+m.save("maps/STEP07_map_densite.html")
