@@ -30,8 +30,8 @@ def get_insee_code(commune_name, df_insee):
         raise ValueError(f"Commune '{commune_name}' non trouvée dans les données INSEE.")
 
 def load_knn_data():
-    # --- Charger tous les CSV du dossier STEP03 ---
-    files = glob.glob("csv/STEP03/STEP03_maisons_dept*.csv")
+    # --- Charger tous les CSV du dossier STEP02 (avant imputation) ---
+    files = glob.glob("csv/STEP02/STEP02_maisons_dept*.csv")
     df_list = []
     for file in files:
         df_temp = pd.read_csv(file)
@@ -43,11 +43,6 @@ def load_knn_data():
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col].astype(str).str.replace(' ', ''), errors='coerce')
 
-    # --- Imputer Pieces, Taille_terrain et Taille par médiane de la commune ---
-    df["Pieces"] = df.groupby("Code INSEE")["Pieces"].transform(lambda x: x.fillna(x.median() if not pd.isna(x.median()) else df["Pieces"].median()))
-    df["Taille_terrain"] = df.groupby("Code INSEE")["Taille_terrain"].transform(lambda x: x.fillna(x.median() if not pd.isna(x.median()) else df["Taille_terrain"].median()))
-    df["Taille"] = df.groupby("Code INSEE")["Taille"].transform(lambda x: x.fillna(x.median() if not pd.isna(x.median()) else df["Taille"].median()))
-    
     # Supprimer les lignes où Taille est NaN
     df = df.dropna(subset=["Taille"])
     
@@ -55,28 +50,36 @@ def load_knn_data():
     return df
 
 def knn_estimation(df, ville, taille, terrain=None, pieces=None, k=2, max_distance=None):
-    # Filtrer la ville
-    df_ville = df[df["Code INSEE"] == ville].copy()
-    if df_ville.empty:
-        return None, "Ville non trouvée dans le dataset", None
-    
-    # Vérifier si la maison exacte existe
-    exact_match = df_ville[(df_ville['Taille'] == taille)]
-    if terrain is not None:
-        exact_match = exact_match[exact_match['Taille_terrain'] == terrain]
-    if pieces is not None:
-        exact_match = exact_match[exact_match['Pieces'] == pieces]
-    if not exact_match.empty:
-        print(f"Maison exacte trouvée : {exact_match.iloc[0]['Nom']} - Prix : {exact_match.iloc[0]['Prix']}")
-    else:
-        print("Aucune maison exacte trouvée avec ces valeurs.")
-    
     # Features numériques utilisées pour la distance
     features = ["Taille"]
     if terrain is not None:
         features.append("Taille_terrain")
     if pieces is not None:
         features.append("Pieces")
+    
+    # Filtrer la ville
+    df_ville = df[df["Code INSEE"] == ville].copy()
+    if df_ville.empty:
+        return None, "Ville non trouvée dans le dataset", None
+    
+    # Garder seulement les maisons avec les features requises non manquantes
+    df_ville = df_ville.dropna(subset=features)
+    if df_ville.empty:
+        return None, f"Aucune maison dans cette ville avec les features requises ({', '.join(features)})", None
+    
+    # Vérifier si une maison très similaire existe
+    exact_match = df_ville[(df_ville['Taille'] == taille)]
+    if terrain is not None:
+        exact_match = exact_match[exact_match['Taille_terrain'] == terrain]
+    if pieces is not None:
+        exact_match = exact_match[exact_match['Pieces'] == pieces]
+    if not exact_match.empty:
+        print(f"Maison très similaire trouvée : {exact_match.iloc[0]['Nom']} - Prix : {exact_match.iloc[0]['Prix']}")
+        # Retourner le prix exact et la maison très similaire
+        exact_house = exact_match.iloc[0][["Nom", "Lieu", "Pieces", "Taille", "Taille_terrain", "Prix", "Lien"]].to_dict()
+        return exact_match.iloc[0]['Prix'], [exact_house], len(df_ville), None
+    else:
+        print("Aucune maison très similaire trouvée avec ces valeurs.")
     
     # Construire la matrice X
     X = df_ville[features].values
@@ -92,15 +95,27 @@ def knn_estimation(df, ville, taille, terrain=None, pieces=None, k=2, max_distan
     # Trouver les k plus proches voisins
     distances, indices = nbrs.kneighbors(point)
     
-    # Vérifier la tolérance de proximité
-    if max_distance is not None and distances[0].max() > max_distance:
-        return None, f"Aucune maison suffisamment proche (distance euclidienne de la maison la plus proche supérieure à {max_distance} : {distances[0][0]:.2f}", len(df_ville), None
+    # Filtrer les voisins dans la tolérance de distance
+    if max_distance is not None:
+        valid_mask = distances[0] <= max_distance
+        valid_indices = indices[0][valid_mask]
+        valid_distances = distances[0][valid_mask]
+        if len(valid_indices) == 0:
+            return None, f"Aucune maison suffisamment proche (distance euclidienne de la plus proche : {distances[0][0]:.2f}, supérieure à la limite donnée de {max_distance}).", len(df_ville), None
+        # Prendre jusqu'à k voisins valides
+        num_neighbors = min(k, len(valid_indices))
+        selected_indices = valid_indices[:num_neighbors]
+        selected_distances = valid_distances[:num_neighbors]
+    else:
+        selected_indices = indices[0]
+        selected_distances = distances[0]
+        num_neighbors = len(selected_indices)
     
     # Moyenne des prix
-    prix_estime = df_ville.iloc[indices[0]]["Prix"].mean()
+    prix_estime = df_ville.iloc[selected_indices]["Prix"].mean()
     
     # Données des maisons les plus proches
-    houses_data = df_ville.iloc[indices[0]][["Nom", "Lieu", "Pieces", "Taille", "Taille_terrain", "Prix", "Lien"]].to_dict('records')
+    houses_data = df_ville.iloc[selected_indices][["Nom", "Lieu", "Pieces", "Taille", "Taille_terrain", "Prix", "Lien"]].to_dict('records')
     
     return prix_estime, houses_data, len(df_ville), None
 
@@ -125,4 +140,15 @@ if __name__ == "__main__":
     pieces_maison = int(pieces_input) if pieces_input else None
     
     df = load_knn_data()
-    prix, maisons, num_maisons, _ = knn_estimation(df, ville_code_insee, taille_maison, terrain_maison, pieces_maison, k=2, max_distance=1000)
+    prix, maisons, num_maisons, _ = knn_estimation(df, ville_code_insee, taille_maison, terrain_maison, pieces_maison, k=2, max_distance=30)    
+    if prix is not None:
+        print(f"Prix estimé : {prix:,.0f} €")
+        print(f"Nombre de maisons dans la commune : {num_maisons}")
+        if len(maisons) == 1:
+            print("Maison la plus proche :")
+        else:
+            print("Maisons les plus proches :")
+        for house in maisons:
+            print(f"- {house['Nom']} - Prix : {house['Prix']} - Taille : {house['Taille']} m² - Terrain : {house['Taille_terrain']} m² - Pièces : {house['Pieces']}")
+    else:
+        print("Erreur :", maisons)
