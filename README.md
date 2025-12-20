@@ -20,6 +20,7 @@ Ce projet analyse le marché immobilier des maisons en Bretagne à partir de don
 - `STEP01/` à `STEP04/` : Données scrapées et nettoyées.
 - `STEP05/` : Agrégation par commune.
 - `STEP06/` : Ajout des coordonnées GPS.
+- `STEP07/` : Création des cartes.
 
 ## Installation
 
