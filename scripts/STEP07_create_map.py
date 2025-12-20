@@ -1,4 +1,6 @@
 import folium
+from folium.plugins import HeatMap
+import geopandas as gpd
 import json
 import pandas as pd
 import os
@@ -59,7 +61,7 @@ for index, row in df.iterrows():
         folium.GeoJson(
             geojson_data, 
             name="Contour de la commune",
-            tooltip=f"{name}<br>Maisons à vendre: {count}<br>Prix moyen/m²: {avg_price if pd.notna(avg_price) else 'N/A'} €",
+            tooltip=f"<div style='font-size: 16px; padding: 10px; background-color: white; border: 1px solid black; border-radius: 5px;'>{name}<br>Maisons à vendre: {count}<br>Prix moyen/m²: {avg_price if pd.notna(avg_price) else 'N/A'} €</div>",
             style_function=lambda x, color=fill_color: {'fillColor': color, 'color': "#CCCCCC", 'weight': 2, 'fillOpacity': 0.8}
         ).add_to(m)
     except json.JSONDecodeError:
@@ -67,4 +69,34 @@ for index, row in df.iterrows():
 
 
 # Sauvegarder la carte dans un fichier HTML
-m.save("STEP07_map.html")
+m.save("STEP07_map_prix.html")
+
+
+
+# ----------------------------------------
+# Seconde carte heatmap
+# ----------------------------------------
+
+# Utiliser le même DataFrame filtré que pour la première carte
+# Convertir la colonne GPS (GeoJSON) en géometrie
+df['geometry'] = df['GPS'].apply(lambda x: gpd.GeoSeries.from_file(json.dumps(json.loads(x))).geometry[0] if x else None)
+
+# Créer un GeoDataFrame
+gdf = gpd.GeoDataFrame(df, geometry='geometry')
+
+# calcul du point central de chaque géométrie du Dataframe et transformation des polygones/lignes, en points
+gdf['centroid'] = gdf.geometry.centroid
+gdf_points = gdf.set_geometry('centroid')
+
+# Coordonnées approximatives du centre (ici Bretagne)
+map_center = [48.1, -3.15]
+m = folium.Map(location=map_center, zoom_start=8, tiles='CartoDB positron')
+
+# Préparer les points pour la heatmap (lat, lon, poids)
+heat_data = [[point.y, point.x, nb] for point, nb in zip(gdf_points.geometry, gdf_points['Nombre de maisons à vendre'])]
+
+# Ajouter la heatmap
+HeatMap(heat_data, radius=12).add_to(m)
+
+# Afficher la carte
+m.save("STEP07_map_densite.html")

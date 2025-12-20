@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 import glob
-from scripts.predict_knn import load_knn_data, knn_estimation
+from scripts.predict_knn import load_knn_data, knn_estimation, load_insee_codes, get_insee_code
 
 # Couleurs de l'application (utilisables partout)
 background_color = "#08131F"
@@ -18,9 +18,18 @@ st.title("Marché de l'immobilier en Bretagne")
 
 
 try:
-        with open("STEP07_map.html", "r", encoding="utf-8") as f:
-            html_content = f.read()
-        components.html(html_content, height=600)
+    # Charger les cartes
+    with open("STEP07_map_prix.html", "r", encoding="utf-8") as f:
+        prix_html = f.read()
+    with open("STEP07_map_densite.html", "r", encoding="utf-8") as f:
+        densite_html = f.read()
+    
+    # Afficher en 2 colonnes
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Carte des prix moyens au m²")
+        components.html(prix_html, height=600)
         
         # Légende des couleurs
         legend_html = """
@@ -28,18 +37,22 @@ try:
         <div style="display:flex; justify-content:flex-start; align-items:center;">
         <span style="margin-right:20px; font-weight:bold; color:{text_highlight_color};">Prix moyen au m² :</span>
         <div style="display:flex; justify-content:space-around; align-items:center; flex:1;">
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#4CAF50; margin-right:5px; border-radius:50%;"></div> ≤ 1632.0 €</div>
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FFC107; margin-right:5px; border-radius:50%;"></div> 1632.0 - 2073.0 €</div>
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FF9800; margin-right:5px; border-radius:50%;"></div> 2073.0 - 2575.0 €</div>
-        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#F44336; margin-right:5px; border-radius:50%;"></div> > 2575.0 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#4CAF50; margin-right:5px; border-radius:50%;"></div> ≤ 1631.5 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FFC107; margin-right:5px; border-radius:50%;"></div> 1631.5 - 2071.0 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#FF9800; margin-right:5px; border-radius:50%;"></div> 2071.0 - 2573.5 €</div>
+        <div style="display:flex; align-items:center; margin:5px;"><div style="width:20px; height:20px; background-color:#F44336; margin-right:5px; border-radius:50%;"></div> > 2573.5 €</div>
         </div>
         </div>
         </div>
         """.format(background_color=background_color, border_color=border_color, text_highlight_color=text_highlight_color)
         st.markdown(legend_html, unsafe_allow_html=True)
+    
+    with col2:
+        st.subheader("Carte de densité des maisons à vendre")
+        components.html(densite_html, height=600)
         
 except FileNotFoundError:
-        st.error("Le fichier STEP07_map.html n'a pas été trouvé. Veuillez exécuter create_map.py d'abord.")
+    st.error("Les fichiers STEP07_map_prix.html et/ou STEP07_map_densite.html n'ont pas été trouvés. Veuillez exécuter STEP07_create_map.py d'abord.")
 
 
 # Section de recherche avancée
@@ -216,33 +229,80 @@ with st.expander("Statistiques des prix immobiliers"):
         import seaborn as sns
         
         # Charger les données
-        df_stats = pd.read_csv("csv/STEP06/STEP06_all_bretagne_with_gps.csv")
-        df_stats = df_stats[df_stats['GPS'].notna() & (df_stats['GPS'] != '')]
-        prix = df_stats['Prix moyen au m2'].dropna()
+        df_graph = pd.read_csv("csv/STEP05/STEP05_all_bretagne.csv")
         
-        # Afficher les statistiques
-        st.write("**Valeurs statistiques des prix moyens au m² :**")
-        col_min, col_q1, col_med, col_q3, col_max = st.columns(5)
-        with col_min:
-            st.metric("Minimum", f"{prix.min():.0f} €")
-        with col_q1:
-            st.metric("Q1 (25%)", f"{prix.quantile(0.25):.0f} €")
-        with col_med:
-            st.metric("Médiane", f"{prix.quantile(0.5):.0f} €")
-        with col_q3:
-            st.metric("Q3 (75%)", f"{prix.quantile(0.75):.0f} €")
-        with col_max:
-            st.metric("Maximum", f"{prix.max():.0f} €")
+        # Ajouter la colonne departement
+        df_graph["departement"] = df_graph["Code INSEE"].astype(str).str.zfill(5).str[:2]
         
-        # Afficher le boxplot
-        st.write("**Distribution des prix (sans outliers) :**")
-        fig, ax = plt.subplots(figsize=(8, 4))
-        sns.boxplot(data=prix, orient='h', showfliers=False, ax=ax)
-        ax.set_xlabel('Prix au m² (€)')
-        st.pyplot(fig)
+        # Duplication des lignes pour pondérer les données dans le violin plot
+        df_rep = df_graph.loc[df_graph.index.repeat(df_graph["Nombre de maisons à vendre"])]
+        
+        # Histogramme
+        fig1, ax1 = plt.subplots(figsize=(10,6))
+        ax1.hist(
+            df_graph["Prix moyen au m2"],
+            bins=20,
+            weights=df_graph["Nombre de maisons à vendre"],
+            edgecolor="black"
+        )
+        ax1.set_xlabel("Prix au m² (€)")
+        ax1.set_ylabel("Nombre de maisons")
+        ax1.set_title("Distribution du prix au m² (pondérée par le nombre de maisons)")
+        
+        # Violin plot
+        fig2, ax2 = plt.subplots(figsize=(12,6))
+        sns.violinplot(
+            x="departement",
+            y="Prix moyen au m2",
+            data=df_rep,
+            inner="quartile",
+            palette="Set2",
+            cut=0,
+            ax=ax2
+        )
+        ax2.set_xlabel("Département")
+        ax2.set_ylabel("Prix au m² (€)")
+        ax2.set_title("Distribution du prix au m² par département")
+        
+        # Scatter plot
+        fig3, ax3 = plt.subplots(figsize=(10,6))
+        sns.scatterplot(
+            data=df_graph,
+            x="Nombre de maisons à vendre",
+            y="Prix moyen au m2",
+            hue="departement",
+            palette="Set1",
+            alpha=0.8,
+            ax=ax3
+        )
+        ax3.set_title("Prix au m² vs nombre de maisons (par département)")
+        
+        # Présenter en 3 colonnes
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.pyplot(fig1)
+            st.markdown(f"""
+            <div style="background-color: {background_color}; padding: 10px; border: 1px solid {border_color}; color: white; margin-top: 10px;">
+            Cet histogramme montre la distribution des prix au m² pondérée par le nombre de maisons à vendre, permettant de voir la répartition globale des prix en Bretagne.
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.pyplot(fig2)
+            st.markdown(f"""
+            <div style="background-color: {background_color}; padding: 10px; border: 1px solid {border_color}; color: white; margin-top: 10px;">
+            Le violin plot illustre la distribution des prix au m² par département, avec une pondération basée sur le nombre de maisons, révélant les variations régionales.
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.pyplot(fig3)
+            st.markdown(f"""
+            <div style="background-color: {background_color}; padding: 10px; border: 1px solid {border_color}; color: white; margin-top: 10px;">
+            Le scatter plot représente la relation entre le nombre de maisons à vendre et le prix moyen au m² par commune, coloré par département pour identifier les tendances. 1 point = 1 commune.
+            </div>
+            """, unsafe_allow_html=True)
         
     except FileNotFoundError:
-        st.error("Le fichier csv/STEP06/STEP06_all_bretagne_with_gps.csv n'a pas été trouvé.")
+        st.error("Les fichiers csv/STEP05/STEP05_all_bretagne.csv et/ou STEP07_map_densite.html n'ont pas été trouvés.")
     except Exception as e:
         st.error(f"Erreur lors du chargement des statistiques: {e}")
 
@@ -252,94 +312,89 @@ with st.expander("Estimation de prix par KNN"):
     # --- Charger les données pour KNN ---
     df_knn = load_knn_data()
     # --- Charger les codes INSEE ---
-    df_insee = pd.read_csv("csv/code_insee.csv")
+    df_insee = load_insee_codes()
 
     col1, col2 = st.columns(2)
     with col1:
         ville = st.text_input("Nom de la commune", value="Saint-Brieuc")
-        taille = st.text_input("Taille de la maison (m²)", value="120.0")
+        taille = st.text_input("Taille de la maison (m²)", value="120")
     with col2:
-        terrain = st.text_input("Taille du terrain (m²)", value="500.0")
+        terrain = st.text_input("Taille du terrain (m²)", value="500")
         pieces = st.text_input("Nombre de pièces", value="5")
     
     if st.button("Estimer le prix"):
         try:
-            ville_input = ville.strip().lower()
-            matching = df_insee[df_insee['LIBELLE'].str.lower() == ville_input]
-            if matching.empty:
-                st.error("Commune non trouvée.")
+            ville_input = ville.strip()
+            code_insee_int = get_insee_code(ville_input, df_insee)
+            taille_int = int(taille)
+            terrain_int = int(terrain)
+            pieces_int = int(pieces)
+            prix, houses_data, num_maisons, _ = knn_estimation(df_knn, code_insee_int, taille_int, terrain_int, pieces_int, max_distance=30)
+            if prix is not None:
+                st.success(f"Prix estimé : {prix:,.0f} €")
+                st.write(f"Le prix est une moyenne des maisons similaires ci-dessous. Attention il ne prend pas en compte d'autres facteurs comme l'état du bien, l'année de construction, la localisation précise dans la commune, etc.")
+                st.write("Maisons les plus proches :")
+                houses = houses_data
+                div_html = """
+                <div style="margin-bottom:15px; text-align: center; border: 1px solid {border_color}; padding: 10px; margin: 5px; background-color: {background_color}; color: white;">
+                <h4>{nom}</h4>
+                <div style="display: flex; justify-content: space-around; margin-bottom: 10px;">
+                <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
+                <div style="font-weight: bold;">Lieu</div>
+                <div>{lieu}</div>
+                </div>
+                <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
+                <div style="font-weight: bold;">Pièces</div>
+                <div>{pieces}</div>
+                </div>
+                <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
+                <div style="font-weight: bold;">Taille</div>
+                <div>{taille} m²</div>
+                </div>
+                <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
+                <div style="font-weight: bold;">Terrain</div>
+                <div>{terrain} m²</div>
+                </div>
+                <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
+                <div style="font-weight: bold;">Prix</div>
+                <div>{prix:.0f} €</div>
+                </div>
+                </div>
+                <div style="margin-top: 10px;">
+                <a href="{lien}" target="_blank" style="background-color: {text_highlight_color}; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block;">Voir l'annonce</a>
+                </div>
+                </div>
+                """
+                if len(houses) > 0:
+                    if len(houses) == 1:
+                        cols = st.columns(1)
+                        with cols[0]:
+                            house = houses[0]
+                            nom = house['Nom']
+                            lieu = house['Lieu']
+                            pieces = house['Pieces']
+                            taille = house['Taille']
+                            terrain = house['Taille_terrain']
+                            prix_h = house['Prix']
+                            lien = house['Lien']
+                            st.markdown(div_html.format(nom=nom, lieu=lieu, pieces=pieces, taille=taille, terrain=terrain, prix=prix_h, lien=lien, border_color=border_color, background_color=background_color, text_highlight_color=text_highlight_color), unsafe_allow_html=True)
+                    else:
+                        col1, col2 = st.columns(2)
+                        for i, house in enumerate(houses):
+                            nom = house['Nom']
+                            lieu = house['Lieu']
+                            pieces = house['Pieces']
+                            taille = house['Taille']
+                            terrain = house['Taille_terrain']
+                            prix_h = house['Prix']
+                            lien = house['Lien']
+                            if i % 2 == 0:
+                                with col1:
+                                    st.markdown(div_html.format(nom=nom, lieu=lieu, pieces=pieces, taille=taille, terrain=terrain, prix=prix_h, lien=lien, border_color=border_color, background_color=background_color, text_highlight_color=text_highlight_color), unsafe_allow_html=True)
+                            else:
+                                with col2:
+                                    st.markdown(div_html.format(nom=nom, lieu=lieu, pieces=pieces, taille=taille, terrain=terrain, prix=prix_h, lien=lien, border_color=border_color, background_color=background_color, text_highlight_color=text_highlight_color), unsafe_allow_html=True)
             else:
-                code_insee_str = matching['COM'].iloc[0]
-                code_insee_int = int(code_insee_str)
-                taille_float = float(taille)
-                terrain_float = float(terrain)
-                pieces_int = int(pieces)
-                prix, result = knn_estimation(df_knn, code_insee_int, taille_float, terrain_float, pieces_int, max_distance=30)
-                if prix is not None:
-                    st.success(f"Prix estimé : {prix:,.0f} €")
-                    st.write(f"Le prix est une moyenne des maisons similaires ci-dessous.")
-                    st.write("Maisons les plus proches :")
-                    houses = result
-                    div_html = """
-                    <div style="margin-bottom:15px; text-align: center; border: 1px solid {border_color}; padding: 10px; margin: 5px; background-color: {background_color}; color: white;">
-                    <h4>{nom}</h4>
-                    <div style="display: flex; justify-content: space-around; margin-bottom: 10px;">
-                    <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
-                    <div style="font-weight: bold;">Lieu</div>
-                    <div>{lieu}</div>
-                    </div>
-                    <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
-                    <div style="font-weight: bold;">Pièces</div>
-                    <div>{pieces}</div>
-                    </div>
-                    <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
-                    <div style="font-weight: bold;">Taille</div>
-                    <div>{taille} m²</div>
-                    </div>
-                    <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
-                    <div style="font-weight: bold;">Terrain</div>
-                    <div>{terrain} m²</div>
-                    </div>
-                    <div style="text-align: center; padding: 8px; margin: 4px; background-color: #0e1f32;">
-                    <div style="font-weight: bold;">Prix</div>
-                    <div>{prix:.0f} €</div>
-                    </div>
-                    </div>
-                    <div style="margin-top: 10px;">
-                    <a href="{lien}" target="_blank" style="background-color: {text_highlight_color}; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block;">Voir l'annonce</a>
-                    </div>
-                    </div>
-                    """
-                    if len(houses) > 0:
-                        if len(houses) == 1:
-                            cols = st.columns(1)
-                            with cols[0]:
-                                house = houses[0]
-                                nom = house['Nom']
-                                lieu = house['Lieu']
-                                pieces = house['Pieces']
-                                taille = house['Taille']
-                                terrain = house['Taille_terrain']
-                                prix_h = house['Prix']
-                                lien = house['Lien']
-                                st.markdown(div_html.format(nom=nom, lieu=lieu, pieces=pieces, taille=taille, terrain=terrain, prix=prix_h, lien=lien, border_color=border_color, background_color=background_color, text_highlight_color=text_highlight_color), unsafe_allow_html=True)
-                        else:
-                            col1, col2 = st.columns(2)
-                            for i, house in enumerate(houses):
-                                nom = house['Nom']
-                                lieu = house['Lieu']
-                                pieces = house['Pieces']
-                                taille = house['Taille']
-                                terrain = house['Taille_terrain']
-                                prix_h = house['Prix']
-                                lien = house['Lien']
-                                if i % 2 == 0:
-                                    with col1:
-                                        st.markdown(div_html.format(nom=nom, lieu=lieu, pieces=pieces, taille=taille, terrain=terrain, prix=prix_h, lien=lien, border_color=border_color, background_color=background_color, text_highlight_color=text_highlight_color), unsafe_allow_html=True)
-                                else:
-                                    with col2:
-                                        st.markdown(div_html.format(nom=nom, lieu=lieu, pieces=pieces, taille=taille, terrain=terrain, prix=prix_h, lien=lien, border_color=border_color, background_color=background_color, text_highlight_color=text_highlight_color), unsafe_allow_html=True)
-                else:
-                    st.error(result)
+                st.error(houses_data)
         except ValueError:
             st.error("Veuillez entrer des valeurs numériques valides.")

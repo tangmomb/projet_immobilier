@@ -2,10 +2,36 @@ import pandas as pd
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 import glob
+import warnings
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+def load_insee_codes():
+    # Charger le fichier des codes INSEE
+    df_insee = pd.read_csv("csv/code_insee.csv", dtype=str)
+    # Filtrer pour la Bretagne (départements 22, 29, 35, 56)
+    df_insee = df_insee[df_insee['DEP'].isin(['22', '29', '35', '56'])]
+    return df_insee
+
+def get_insee_code(commune_name, df_insee):
+    # Normaliser pour matcher NCC (majuscules, - remplacé par espace)
+    def normalize(s):
+        if pd.isna(s):
+            return ""
+        s = str(s).upper()
+        s = s.replace('-', ' ')
+        return s
+    
+    commune_norm = normalize(commune_name)
+    match = df_insee[df_insee['NCC'].apply(lambda x: str(x).replace('-', ' ')) == commune_norm]
+    if not match.empty:
+        return int(match.iloc[0]['COM'])
+    else:
+        raise ValueError(f"Commune '{commune_name}' non trouvée dans les données INSEE.")
 
 def load_knn_data():
-    # --- Charger tous les CSV du dossier STEP04 ---
-    files = glob.glob("csv/STEP04/STEP04_maisons_dept*.csv")
+    # --- Charger tous les CSV du dossier STEP03 ---
+    files = glob.glob("csv/STEP03/STEP03_maisons_dept*.csv")
     df_list = []
     for file in files:
         df_temp = pd.read_csv(file)
@@ -17,18 +43,33 @@ def load_knn_data():
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col].astype(str).str.replace(' ', ''), errors='coerce')
 
-    # --- Imputer Pieces et Taille_terrain par médiane de la commune ---
-    df["Pieces"] = df.groupby("Code INSEE")["Pieces"].transform(lambda x: x.fillna(x.median()))
-    df["Taille_terrain"] = df.groupby("Code INSEE")["Taille_terrain"].transform(lambda x: x.fillna(x.median()))
+    # --- Imputer Pieces, Taille_terrain et Taille par médiane de la commune ---
+    df["Pieces"] = df.groupby("Code INSEE")["Pieces"].transform(lambda x: x.fillna(x.median() if not pd.isna(x.median()) else df["Pieces"].median()))
+    df["Taille_terrain"] = df.groupby("Code INSEE")["Taille_terrain"].transform(lambda x: x.fillna(x.median() if not pd.isna(x.median()) else df["Taille_terrain"].median()))
+    df["Taille"] = df.groupby("Code INSEE")["Taille"].transform(lambda x: x.fillna(x.median() if not pd.isna(x.median()) else df["Taille"].median()))
     
+    # Supprimer les lignes où Taille est NaN
+    df = df.dropna(subset=["Taille"])
+    
+    print(f"Total maisons chargées : {len(df)}")
     return df
 
-# --- Fonction KNN local ---
 def knn_estimation(df, ville, taille, terrain=None, pieces=None, k=2, max_distance=None):
     # Filtrer la ville
     df_ville = df[df["Code INSEE"] == ville].copy()
     if df_ville.empty:
-        return None, "Ville non trouvée dans le dataset"
+        return None, "Ville non trouvée dans le dataset", None
+    
+    # Vérifier si la maison exacte existe
+    exact_match = df_ville[(df_ville['Taille'] == taille)]
+    if terrain is not None:
+        exact_match = exact_match[exact_match['Taille_terrain'] == terrain]
+    if pieces is not None:
+        exact_match = exact_match[exact_match['Pieces'] == pieces]
+    if not exact_match.empty:
+        print(f"Maison exacte trouvée : {exact_match.iloc[0]['Nom']} - Prix : {exact_match.iloc[0]['Prix']}")
+    else:
+        print("Aucune maison exacte trouvée avec ces valeurs.")
     
     # Features numériques utilisées pour la distance
     features = ["Taille"]
@@ -53,7 +94,7 @@ def knn_estimation(df, ville, taille, terrain=None, pieces=None, k=2, max_distan
     
     # Vérifier la tolérance de proximité
     if max_distance is not None and distances[0].max() > max_distance:
-        return None, f"Aucune maison suffisamment proche (distance max: {distances[0].max():.2f})"
+        return None, f"Aucune maison suffisamment proche (distance euclidienne de la maison la plus proche supérieure à {max_distance} : {distances[0][0]:.2f}", len(df_ville), None
     
     # Moyenne des prix
     prix_estime = df_ville.iloc[indices[0]]["Prix"].mean()
@@ -61,20 +102,27 @@ def knn_estimation(df, ville, taille, terrain=None, pieces=None, k=2, max_distan
     # Données des maisons les plus proches
     houses_data = df_ville.iloc[indices[0]][["Nom", "Lieu", "Pieces", "Taille", "Taille_terrain", "Prix", "Lien"]].to_dict('records')
     
-    return prix_estime, houses_data
+    return prix_estime, houses_data, len(df_ville), None
 
 # --- Exemple d'utilisation ---
-ville_code_insee = 22001  # Code INSEE de la commune (entier)
-taille_maison = 476          # m²
-terrain_maison = 8848         # m²
-pieces_maison = 21            # nombre de pièces
-
-df = load_knn_data()
-prix, maisons = knn_estimation(df, ville_code_insee, taille_maison, terrain_maison, pieces_maison, k=2, max_distance=500)
-if prix is not None:
-    print(f"Prix estimé : {prix:,.0f} €")
-    print("Maisons les plus proches :")
-    for maison in maisons:
-        print(f"- {maison['Nom']}: {maison['Lien']}")
-else:
-    print(" Erreur :", maisons)
+if __name__ == "__main__":
+    # Charger les codes INSEE
+    df_insee = load_insee_codes()
+    
+    # Demander le nom de la commune
+    commune_name = input("Entrez le nom de la commune : ")
+    try:
+        ville_code_insee = get_insee_code(commune_name, df_insee)
+        print(f"Code INSEE trouvé : {ville_code_insee}")
+    except ValueError as e:
+        print(e)
+        exit(1)
+    
+    taille_maison = int(input("Entrez la taille de la maison (m²) : "))
+    terrain_input = input("Entrez la taille du terrain (m²) ou laissez vide : ").strip()
+    terrain_maison = int(terrain_input) if terrain_input else None
+    pieces_input = input("Entrez le nombre de pièces ou laissez vide : ").strip()
+    pieces_maison = int(pieces_input) if pieces_input else None
+    
+    df = load_knn_data()
+    prix, maisons, num_maisons, _ = knn_estimation(df, ville_code_insee, taille_maison, terrain_maison, pieces_maison, k=2, max_distance=1000)
