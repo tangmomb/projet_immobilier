@@ -30,8 +30,8 @@ def get_insee_code(commune_name, df_insee):
         raise ValueError(f"Commune '{commune_name}' non trouvée dans les données INSEE.")
 
 def load_knn_data():
-    # --- Charger tous les CSV du dossier STEP02 (avant imputation) ---
-    files = glob.glob("csv/STEP02/STEP02_maisons_dept*.csv")
+    # --- Charger tous les CSV du dossier STEP04 (avant imputation) ---
+    files = glob.glob("csv/STEP04/STEP04_maisons_dept*.csv")
     df_list = []
     for file in files:
         df_temp = pd.read_csv(file)
